@@ -9,6 +9,9 @@ import { useCategories } from "../hooks/useCategories.js";
 import ItemEditor from "../components/items/ItemEditor.jsx";
 import ItemList from "../components/items/ItemList.jsx";
 import { useItems } from "../hooks/useItems.js";
+import TableEditor from "../components/tables/TableEditor.jsx";
+import TableList from "../components/tables/TableList.jsx";
+import { useTables } from "../hooks/useTables.js";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -16,8 +19,15 @@ function AdminPage() {
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const categoriesState = useCategories();
   const itemsState = useItems();
+  const tablesState = useTables();
   const isItems = activeSection === "items";
-  const activeError = isItems ? itemsState.error : categoriesState.error;
+  const isTables = activeSection === "tables";
+  const activeState = isTables
+    ? tablesState
+    : isItems
+      ? itemsState
+      : categoriesState;
+  const activeError = activeState.error;
 
   const handleLogout = () => {
     localStorage.removeItem("token");
@@ -37,14 +47,35 @@ function AdminPage() {
       <main className="admin-main">
         <AdminHeader
           section={activeSection}
-          count={isItems ? itemsState.items.length : categoriesState.categories.length}
+          count={
+            isTables
+              ? tablesState.tables.length
+              : isItems
+                ? itemsState.items.length
+                : categoriesState.categories.length
+          }
         />
         <AdminAlert
           message={activeError}
-          onDismiss={isItems ? itemsState.clearError : categoriesState.clearError}
+          onDismiss={activeState.clearError}
         />
 
-        {isItems ? (
+        {isTables ? (
+          <>
+            <TableEditor
+              number={tablesState.number}
+              isSaving={tablesState.isSaving}
+              onNumberChange={tablesState.setNumber}
+              onSubmit={tablesState.saveTable}
+            />
+            <TableList
+              tables={tablesState.tables}
+              restaurantName={user?.name || "Restaurant"}
+              isLoading={tablesState.isLoading}
+              onDelete={tablesState.removeTable}
+            />
+          </>
+        ) : isItems ? (
           <>
             <ItemEditor
               categories={categoriesState.categories}

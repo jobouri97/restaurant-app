@@ -28,6 +28,14 @@ function AdminSidebar({ user, activeSection, onSectionChange, onLogout }) {
           <span aria-hidden="true">+</span>
           Items
         </button>
+        <button
+          className={`nav-item ${activeSection === "tables" ? "active" : ""}`}
+          type="button"
+          onClick={() => onSectionChange("tables")}
+        >
+          <span aria-hidden="true">⌗</span>
+          Tables &amp; QR
+        </button>
       </nav>
 
       <div className="sidebar-account">

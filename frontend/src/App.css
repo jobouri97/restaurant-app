@@ -345,6 +345,151 @@
   box-shadow: 0 12px 35px rgba(43, 47, 41, 0.05);
 }
 
+.table-editor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+  padding: 28px 30px;
+  border: 1px solid #dfdbd2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 12px 35px rgba(43, 47, 41, 0.05);
+}
+
+.table-form {
+  display: flex;
+  align-items: end;
+  gap: 12px;
+}
+
+.table-form label {
+  display: grid;
+  gap: 8px;
+  color: #41463f;
+  font-size: 0.78rem;
+  font-weight: 750;
+}
+
+.table-form input {
+  width: 190px;
+  padding: 12px 13px;
+  border: 1px solid #d8d6cf;
+  border-radius: 9px;
+  color: #252a24;
+  background: #fbfaf7;
+}
+
+.table-form input:focus {
+  border-color: #a66f31;
+  outline: 3px solid rgba(166, 111, 49, 0.13);
+}
+
+.tables-section {
+  margin-top: 46px;
+}
+
+.table-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+
+.table-card {
+  overflow: hidden;
+  border: 1px solid #ded9d0;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 8px 28px rgba(43, 47, 41, 0.045);
+}
+
+.table-print-card {
+  padding: 28px 24px 24px;
+  color: #20251f;
+  text-align: center;
+  background:
+    radial-gradient(circle at 50% 0, rgba(224, 182, 120, 0.22), transparent 38%),
+    #fffdf9;
+}
+
+.table-restaurant {
+  margin: 0 0 18px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.1rem;
+}
+
+.table-label {
+  margin: 0;
+  color: #9b672c;
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.24em;
+}
+
+.table-print-card h3 {
+  margin: 2px 0 16px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 3.2rem;
+  font-weight: 500;
+  line-height: 1;
+}
+
+.qr-frame {
+  width: min(100%, 252px);
+  margin: 0 auto 18px;
+  padding: 14px;
+  border: 1px solid #e5ded3;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.qr-frame svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+
+.table-print-card > strong {
+  display: block;
+  font-size: 0.94rem;
+}
+
+.table-hint {
+  margin: 6px 0 0;
+  color: #777c75;
+  font-size: 0.72rem;
+}
+
+.table-card-actions {
+  display: flex;
+  gap: 8px;
+  padding: 14px;
+  border-top: 1px solid #ebe6dd;
+}
+
+.table-card-actions button {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px solid #dcd9d2;
+  border-radius: 8px;
+  color: #51564f;
+  background: #fff;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.table-card-actions button:first-child {
+  border-color: #966329;
+  color: #fff;
+  background: #966329;
+}
+
+.table-card-actions .delete-button:hover {
+  border-color: #bd6c62;
+  color: #9b342a;
+}
+
 .item-editor {
   padding: 30px;
   border: 1px solid #dfdbd2;
@@ -926,6 +1071,15 @@
   .category-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .table-editor {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 620px) {
@@ -959,8 +1113,18 @@
   }
 
   .category-form,
-  .category-grid {
+  .category-grid,
+  .table-grid {
     grid-template-columns: 1fr;
+  }
+
+  .table-form {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .table-form input {
+    width: 100%;
   }
 
   .section-heading {
@@ -1003,5 +1167,51 @@
 
   .category-image {
     height: 180px;
+  }
+}
+
+@media print {
+  @page {
+    size: A5 portrait;
+    margin: 12mm;
+  }
+
+  body {
+    background: #fff;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .table-card.print-target,
+  .table-card.print-target * {
+    visibility: visible;
+  }
+
+  .table-card.print-target {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .table-card.print-target .table-print-card {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 12mm;
+    background: #fff;
+  }
+
+  .table-card.print-target .table-card-actions {
+    display: none;
+  }
+
+  .table-card.print-target .qr-frame {
+    width: 76mm;
   }
 }
