@@ -1,4 +1,4 @@
-function AdminSidebar({ user, onLogout }) {
+function AdminSidebar({ user, activeSection, onSectionChange, onLogout }) {
   return (
     <aside className="admin-sidebar">
       <div className="brand">
@@ -12,9 +12,21 @@ function AdminSidebar({ user, onLogout }) {
       </div>
 
       <nav className="admin-nav" aria-label="Admin navigation">
-        <button className="nav-item active" type="button">
+        <button
+          className={`nav-item ${activeSection === "categories" ? "active" : ""}`}
+          type="button"
+          onClick={() => onSectionChange("categories")}
+        >
           <span aria-hidden="true">#</span>
           Categories
+        </button>
+        <button
+          className={`nav-item ${activeSection === "items" ? "active" : ""}`}
+          type="button"
+          onClick={() => onSectionChange("items")}
+        >
+          <span aria-hidden="true">+</span>
+          Items
         </button>
       </nav>
 

@@ -11,27 +11,20 @@ const parseId = (value) => (/^\d+$/.test(value) ? value : null);
 const normalizeItemInput = (body = {}) => ({
   categoryId: parseId(String(body.categoryId ?? "")),
   name: typeof body.name === "string" ? body.name.trim() : "",
-  description:
-    typeof body.description === "string" ? body.description.trim() || null : null,
-  imageUrl:
-    typeof body.imageUrl === "string" ? body.imageUrl.trim() || null : null,
+  description: typeof body.description === "string" ? body.description.trim() || null : null,
+  imageUrl: typeof body.imageUrl === "string" ? body.imageUrl.trim() || null : null,
   price: body.price,
-  isAvailable:
-    typeof body.isAvailable === "boolean" ? body.isAvailable : true,
+  isAvailable: typeof body.isAvailable === "boolean" ? body.isAvailable : true,
   ingredients: Array.isArray(body.ingredients)
     ? body.ingredients.map((ingredient) => ({
-        name:
-          typeof ingredient.name === "string" ? ingredient.name.trim() : "",
-        options: Array.isArray(ingredient.options)
-          ? ingredient.options.map((option) => ({
-              optionName:
-                typeof option.optionName === "string"
-                  ? option.optionName.trim()
-                  : "",
-              isDefault: option.isDefault === true,
-            }))
-          : [],
-      }))
+      name: typeof ingredient.name === "string" ? ingredient.name.trim() : "",
+      options: Array.isArray(ingredient.options)
+        ? ingredient.options.map((option) => ({
+          optionName: typeof option.optionName === "string" ? option.optionName.trim() : "",
+          isDefault: option.isDefault === true,
+        }))
+        : [],
+    }))
     : [],
 });
 
