@@ -1,11 +1,4 @@
-function CategoryEditor({
-  form,
-  editingId,
-  isSaving,
-  onChange,
-  onSubmit,
-  onCancel,
-}) {
+function CategoryEditor({ form, editingId, isSaving, onChange, onSubmit, onCancel, }) {
   const handleSubmit = (event) => {
     event.preventDefault();
     onSubmit();
