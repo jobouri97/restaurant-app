@@ -11,10 +11,15 @@ const parseTableNumber = (value) => {
   return Number.isSafeInteger(number) && number > 0 ? number : null;
 };
 
-const serializeTable = (table, req) => ({
-  ...table,
-  qrUrl: `${req.protocol}://${req.get("host")}/api/public/tables/${encodeURIComponent(table.qr_code)}`,
-});
+const serializeTable = (table, req) => {
+  const frontendUrl = process.env.FRONTEND_URL?.replace(/\/$/, "");
+  return {
+    ...table,
+    qrUrl: frontendUrl
+      ? `${frontendUrl}/order/${encodeURIComponent(table.qr_code)}`
+      : `${req.protocol}://${req.get("host")}/api/public/tables/${encodeURIComponent(table.qr_code)}`,
+  };
+};
 
 export const getTables = async (req, res, next) => {
   try {

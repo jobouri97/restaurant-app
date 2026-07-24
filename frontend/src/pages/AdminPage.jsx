@@ -12,17 +12,29 @@ import { useItems } from "../hooks/useItems.js";
 import TableEditor from "../components/tables/TableEditor.jsx";
 import TableList from "../components/tables/TableList.jsx";
 import { useTables } from "../hooks/useTables.js";
+import RequestBoard from "../components/requests/RequestBoard.jsx";
+import { useRequests } from "../hooks/useRequests.js";
+import ProfitDashboard from "../components/profits/ProfitDashboard.jsx";
+import { useProfits } from "../hooks/useProfits.js";
 
 function AdminPage() {
   const navigate = useNavigate();
-  const [activeSection, setActiveSection] = useState("categories");
+  const [activeSection, setActiveSection] = useState("requests");
   const user = JSON.parse(localStorage.getItem("user") || "null");
   const categoriesState = useCategories();
   const itemsState = useItems();
   const tablesState = useTables();
+  const profitsState = useProfits();
+  const requestsState = useRequests(profitsState.refresh);
+  const isRequests = activeSection === "requests";
+  const isProfits = activeSection === "profits";
   const isItems = activeSection === "items";
   const isTables = activeSection === "tables";
-  const activeState = isTables
+  const activeState = isProfits
+    ? profitsState
+    : isRequests
+    ? requestsState
+    : isTables
     ? tablesState
     : isItems
       ? itemsState
@@ -48,7 +60,11 @@ function AdminPage() {
         <AdminHeader
           section={activeSection}
           count={
-            isTables
+            isProfits
+              ? profitsState.profits.length
+              : isRequests
+              ? requestsState.requests.length
+              : isTables
               ? tablesState.tables.length
               : isItems
                 ? itemsState.items.length
@@ -60,7 +76,26 @@ function AdminPage() {
           onDismiss={activeState.clearError}
         />
 
-        {isTables ? (
+        {isProfits ? (
+          <ProfitDashboard
+            profits={profitsState.profits}
+            isLoading={profitsState.isLoading}
+          />
+        ) : isRequests ? (
+          <RequestBoard
+            requests={requestsState.requests}
+            selected={requestsState.selected}
+            isLoading={requestsState.isLoading}
+            isSaving={requestsState.isSaving}
+            dateFilter={requestsState.dateFilter}
+            customDate={requestsState.customDate}
+            onDateFilterChange={requestsState.setDateFilter}
+            onCustomDateChange={requestsState.setCustomDate}
+            onOpen={requestsState.openRequest}
+            onClose={requestsState.closeRequest}
+            onStatusChange={requestsState.changeStatus}
+          />
+        ) : isTables ? (
           <>
             <TableEditor
               number={tablesState.number}

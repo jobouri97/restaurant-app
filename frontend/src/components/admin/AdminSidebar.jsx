@@ -13,6 +13,22 @@ function AdminSidebar({ user, activeSection, onSectionChange, onLogout }) {
 
       <nav className="admin-nav" aria-label="Admin navigation">
         <button
+          className={`nav-item ${activeSection === "requests" ? "active" : ""}`}
+          type="button"
+          onClick={() => onSectionChange("requests")}
+        >
+          <span aria-hidden="true">●</span>
+          Requests
+        </button>
+        <button
+          className={`nav-item ${activeSection === "profits" ? "active" : ""}`}
+          type="button"
+          onClick={() => onSectionChange("profits")}
+        >
+          <span aria-hidden="true">$</span>
+          Profits
+        </button>
+        <button
           className={`nav-item ${activeSection === "categories" ? "active" : ""}`}
           type="button"
           onClick={() => onSectionChange("categories")}

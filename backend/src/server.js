@@ -6,6 +6,8 @@ import authRoutes from "../routes/authRoutes.js";
 import categoryRoutes from "../routes/categoryRoutes.js";
 import itemRoutes from "../routes/itemRoutes.js";
 import publicRoutes from "../routes/publicRoutes.js";
+import requestRoutes from "../routes/requestRoutes.js";
+import profitRoutes from "../routes/profitRoutes.js";
 import tableRoutes from "../routes/tableRoutes.js";
 
 const app = express();
@@ -21,6 +23,8 @@ app.use("/api/auth", authRoutes);
 app.use("/api/categories", categoryRoutes);
 app.use("/api/items", itemRoutes);
 app.use("/api/tables", tableRoutes);
+app.use("/api/requests", requestRoutes);
+app.use("/api/profits", profitRoutes);
 app.use("/api/public", publicRoutes);
 
 app.get("/api/health", async (req, res) => {

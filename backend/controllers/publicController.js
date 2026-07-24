@@ -2,6 +2,7 @@ import {
   findUserByPublicCode,
 } from "../models/userModel.js";
 import { findTableByQrCode } from "../models/tableModel.js";
+import { findPublicMenuByUserId } from "../models/publicMenuModel.js";
 
 export const getPublicRestaurant = async (req, res, next) => {
   try {
@@ -36,6 +37,8 @@ export const getPublicTable = async (req, res, next) => {
       });
     }
 
+    const menu = await findPublicMenuByUserId(table.user_id);
+
     return res.json({
       table: {
         id: table.id,
@@ -45,6 +48,7 @@ export const getPublicTable = async (req, res, next) => {
         name: table.restaurant_name,
         publicCode: table.public_code,
       },
+      menu,
     });
   } catch (error) {
     next(error);

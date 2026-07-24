@@ -25,7 +25,7 @@ export const findTableById = async (id, userId) => {
 
 export const findTableByQrCode = async (qrCode) => {
   const result = await pool.query(
-    `SELECT t.id, t.number, t.qr_code, u.name AS restaurant_name,
+    `SELECT t.id, t.user_id, t.number, t.qr_code, u.name AS restaurant_name,
             u.public_code
      FROM restaurant_tables t
      JOIN users u ON u.id = t.user_id
