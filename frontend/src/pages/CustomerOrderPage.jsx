@@ -1,324 +1,364 @@
-import { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
-import { getTableMenu, getTrackedRequest, submitRequest } from "../services/publicRequestApi.js";
+import { useEffect, useMemo, useState } from "react"; // Gives us React tools for state, side effects, and saved calculations.
+import { useParams } from "react-router-dom"; // Lets us read the QR code written inside the page URL.
+import { io } from "socket.io-client";
+import CategoryFilter from "../components/customer/CategoryFilter.jsx"; // The buttons used to filter food by category.
+import CustomerHeader from "../components/customer/CustomerHeader.jsx"; // The top part of the customer page.
+import CustomerMenu from "../components/customer/CustomerMenu.jsx"; // The component that shows all menu items.
+import ItemCustomizer from "../components/customer/ItemCustomizer.jsx"; // The popup used to choose quantity and ingredients.
+import RequestCart from "../components/customer/RequestCart.jsx"; // The component that shows the customer's cart.
+import RequestTracker from "../components/customer/RequestTracker.jsx"; // The screen that shows request progress.
+import {
+  getTableMenu, // Asks the backend for this table's menu.
+  getTrackedRequest, // Asks the backend for the newest request information.
+  submitRequest, // Sends the customer's cart to the backend.
+} from "../services/publicRequestApi.js";
+import {
+  getRequestExpiryTime,
+  isRequestExpired,
+} from "../utils/requestExpiry.js";
 
-const STEPS = ["accepted", "preparing", "ready", "completed"];
-const COPY = {
-  pending: ["Waiting for confirmation", "The restaurant has received your request."],
-  accepted: ["Confirmed", "Your request was accepted."],
-  preparing: ["Preparing", "The kitchen is preparing your order."],
-  ready: ["Ready", "Your order is ready to be served."],
-  completed: ["Completed", "Enjoy your meal!"],
-  cancelled: ["Request rejected", "Please speak with a staff member or place a new request."],
+const readTrackingTokens = (storageKey) => { // Reads saved request tokens from this browser.
+  try {
+    const saved = JSON.parse(
+      localStorage.getItem(storageKey) || "[]", // Uses an empty list when nothing has been saved yet.
+    );
+
+    return Array.isArray(saved) ? saved : []; // Accepts the saved value only if it is an array.
+  } catch {
+    return []; // Returns an empty list if the saved text is invalid.
+  }
 };
-const money = (value) => `$${Number(value).toFixed(2)}`;
 
 function CustomerOrderPage() {
-  const { qrCode } = useParams();
-  const storageKey = `restaurant-requests:${qrCode}`;
-  const legacyStorageKey = `restaurant-request:${qrCode}`;
-  const [page, setPage] = useState(null);
-  const [cart, setCart] = useState([]);
-  const [activeItem, setActiveItem] = useState(null);
-  const [categoryFilter, setCategoryFilter] = useState("all");
-  const [choices, setChoices] = useState({});
-  const [quantity, setQuantity] = useState(1);
-  const [trackingTokens, setTrackingTokens] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
-      if (Array.isArray(saved) && saved.length) return saved;
-    } catch {
-      // Fall through to the previous single-request storage format.
-    }
-    const legacyToken = localStorage.getItem(legacyStorageKey);
-    return legacyToken ? [legacyToken] : [];
-  });
-  const [trackedRequests, setTrackedRequests] = useState([]);
-  const [trackingToken, setTrackingToken] = useState(() => {
-    try {
-      const saved = JSON.parse(localStorage.getItem(storageKey) || "[]");
-      if (Array.isArray(saved) && saved.length) return saved.at(-1);
-    } catch {
-      // Fall through to the previous single-request storage format.
-    }
-    return localStorage.getItem(legacyStorageKey) || "";
-  });
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
+  const { qrCode } = useParams(); // For example, /order/ABC123 gives us "ABC123".
+
+  const storageKey = `restaurant-requests:${qrCode}`; // Creates a separate storage name for each table.
+
+  const [page, setPage] = useState(null); // Holds the restaurant, table, and menu received from the backend.
+  const [cart, setCart] = useState([]); // Holds everything the customer adds to the cart.
+  const [activeItem, setActiveItem] = useState(null); // Holds the item currently open in the customizer.
+  const [categoryFilter, setCategoryFilter] = useState("all"); // Remembers which menu category is selected.
+  const [choices, setChoices] = useState({}); // Matches each ingredient ID with its chosen option ID.
+  const [quantity, setQuantity] = useState(1); // Remembers how many of the selected item the customer wants.
+
+  const [trackingTokens, setTrackingTokens] = useState(
+    () => readTrackingTokens(storageKey), // Reads the saved tokens when the component is first created.
+  );
+
+  const [trackedRequests, setTrackedRequests] = useState([]); // Holds the submitted requests received from the server.
+
+  const [trackingToken, setTrackingToken] = useState(
+    () =>
+      readTrackingTokens(storageKey).at(-1) || "", // Selects the newest saved token, or an empty string if none exists.
+  );
+
+  const [isLoading, setIsLoading] = useState(true); // Tells us whether the menu is still loading.
+  const [isSubmitting, setIsSubmitting] = useState(false); // Tells us whether a request is currently being sent.
+  const [error, setError] = useState(""); // Holds an error message that can be shown to the customer.
 
   useEffect(() => {
-    let active = true;
-    getTableMenu(qrCode)
-      .then((data) => active && setPage(data))
-      .catch((requestError) => active && setError(requestError.message))
-      .finally(() => active && setIsLoading(false));
-    return () => { active = false; };
-  }, [qrCode]);
+    let active = true; // Remembers whether this component is still displayed.
+
+    getTableMenu(qrCode) // Requests the table and menu information from the backend.
+      .then((data) => active && setPage(data)) // Saves the data only if the component is still displayed.
+      .catch(
+        (requestError) => active && setError(requestError.message), // Saves an error message if loading fails.
+      )
+      .finally(
+        () => active && setIsLoading(false), // Stops the loading state after success or failure.
+      );
+
+    return () => {
+      active = false; // Prevents state updates after the component is removed.
+    };
+  }, [qrCode]); // Runs again if the QR code in the URL changes.
 
   useEffect(() => {
-    if (!trackingTokens.length) return undefined;
-    let active = true;
-    const refresh = () => Promise.all(
-      trackingTokens.map((token) =>
-        getTrackedRequest(token)
-          .then((data) => data.request)
-          .catch(() => null),
-      ),
-    ).then((requests) => {
-      if (active) setTrackedRequests(requests.filter(Boolean));
+    if (!trackingTokens.length) return undefined; // Stops if there are no submitted requests to track.
+
+    let active = true; // Remembers whether this effect is still active.
+
+    const socket = io(import.meta.env.VITE_API_URL, {
+      auth: { trackingTokens }, // Sends the saved tokens when connecting to the Socket.IO server.
     });
-    refresh();
-    const interval = window.setInterval(refresh, 3500);
-    return () => { active = false; window.clearInterval(interval); };
-  }, [trackingTokens]);
+
+    socket.on("connect", () => {
+      Promise.all(
+        trackingTokens.map((token) =>
+          getTrackedRequest(token) // Loads the latest information for this token.
+            .then((data) => data.request) // Keeps only the request from the response.
+            .catch(() => null), // Uses null if this request cannot be loaded.
+        ),
+      ).then((requests) => {
+        if (active) setTrackedRequests(requests.filter(Boolean)); // Removes null values and saves the valid requests.
+      });
+    });
+
+    socket.on("request:updated", (updatedRequest) => {
+      setTrackedRequests((current) =>
+        current.map((request) =>
+          request.tracking_token === updatedRequest.tracking_token
+            ? updatedRequest // Replaces the old request with its updated version.
+            : request, // Keeps other requests unchanged.
+        ),
+      );
+    });
+
+    return () => {
+      active = false; // Prevents the effect from updating state after cleanup.
+      socket.disconnect(); // Disconnects the socket when the component or tokens change.
+    };
+  }, [trackingTokens]); // Reconnects when the saved tracking tokens change.
+
+  useEffect(() => {
+    const now = Date.now(); // Gets the current time in milliseconds.
+
+    const expiryTimes = trackedRequests
+      .map(getRequestExpiryTime) // Gets the expiry time of every tracked request.
+      .filter((expiryTime) => expiryTime !== null); // Removes requests that do not have an expiry time.
+
+    if (!expiryTimes.length) return undefined; // Stops if none of the requests has an expiry time.
+
+    const delay = Math.max(0, Math.min(...expiryTimes) - now); // Calculates how long to wait for the nearest expiry.
+
+    const timeout = window.setTimeout(() => {
+      const expiryCheckTime = Date.now(); // Gets the time again when the timer finishes.
+
+      const expiredTokens = new Set(
+        trackedRequests
+          .filter((request) =>
+            isRequestExpired(request, expiryCheckTime), // Keeps only requests that have expired.
+          )
+          .map((request) => request.tracking_token), // Keeps only their tracking tokens.
+      );
+
+      setTrackedRequests((current) =>
+        current.filter(
+          (request) => !expiredTokens.has(request.tracking_token), // Removes expired requests from the state.
+        ),
+      );
+
+      setTrackingTokens((current) => {
+        const next = current.filter(
+          (token) => !expiredTokens.has(token), // Removes expired tokens from the saved token list.
+        );
+
+        localStorage.setItem(storageKey, JSON.stringify(next)); // Saves the updated token list in the browser.
+
+        return next; // Updates the trackingTokens state.
+      });
+
+      setTrackingToken((current) =>
+        expiredTokens.has(current) ? "" : current, // Closes the tracker if its selected request expired.
+      );
+    }, delay);
+
+    return () => window.clearTimeout(timeout); // Removes the old timer before creating a new one.
+  }, [storageKey, trackedRequests]); // Runs again when the tracked requests change.
 
   const trackedRequest = trackedRequests.find(
-    (request) => request.tracking_token === trackingToken,
+    (request) => request.tracking_token === trackingToken, // Finds the request currently selected by the customer.
+  );
+
+  const cartCount = cart.reduce(
+    (sum, line) => sum + line.qty, // Adds the quantity of every cart item.
+    0, // Starts the total at zero.
   );
 
   const total = useMemo(
-    () => cart.reduce((sum, line) => sum + Number(line.item.price) * line.qty, 0),
-    [cart],
+    () =>
+      cart.reduce(
+        (sum, line) =>
+          sum + Number(line.item.price) * line.qty, // Adds each item's price multiplied by its quantity.
+        0, // Starts the price total at zero.
+      ),
+    [cart], // Recalculates the total only when the cart changes.
   );
 
   const openItem = (item) => {
-    const defaults = {};
+    const defaults = {}; // Will hold the default choice for every ingredient.
+
     item.ingredients.forEach((ingredient) => {
-      const option = ingredient.options.find((entry) => entry.isDefault) || ingredient.options[0];
-      if (option) defaults[ingredient.id] = option.id;
+      const option =
+        ingredient.options.find((entry) => entry.isDefault) || // First looks for an option marked as default.
+        ingredient.options[0]; // Otherwise, uses the first available option.
+
+      if (option) {
+        defaults[ingredient.id] = option.id; // Connects the ingredient ID to the selected option ID.
+      }
     });
-    setActiveItem(item);
-    setChoices(defaults);
-    setQuantity(1);
+
+    setActiveItem(item); // Opens this item inside the customization popup.
+    setChoices(defaults); // Selects the item's default ingredient choices.
+    setQuantity(1); // Resets the quantity to one.
   };
 
   const addToCart = () => {
     const missing = activeItem.ingredients.some(
-      (ingredient) => ingredient.options.length > 0 && !choices[ingredient.id],
+      (ingredient) =>
+        ingredient.options.length > 0 && // Checks only ingredients that have selectable options.
+        !choices[ingredient.id], // Becomes true if this ingredient has no selected option.
     );
-    if (missing) return setError("Please choose one option for every ingredient.");
-    setCart((current) => [...current, {
-      key: crypto.randomUUID(), item: activeItem, qty: quantity, choices,
-    }]);
-    setActiveItem(null);
-    setError("");
+
+    if (missing) {
+      setError("Please choose one option for every ingredient."); // Shows a validation error.
+      return; // Stops before adding the incomplete item.
+    }
+
+    setCart((current) => [
+      ...current, // Keeps all items already in the cart.
+      {
+        key: crypto.randomUUID(), // Creates a unique key for this cart entry.
+        item: activeItem, // Saves the selected menu item.
+        qty: quantity, // Saves the selected quantity.
+        choices, // Saves the selected ingredient options.
+      },
+    ]);
+
+    setActiveItem(null); // Closes the item customization popup.
+    setError(""); // Clears any previous error message.
   };
 
   const sendRequest = async () => {
     try {
-      setIsSubmitting(true);
-      setError("");
-      const data = await submitRequest(qrCode, cart.map((line) => ({
-        itemId: line.item.id,
-        qty: line.qty,
-        ingredients: Object.entries(line.choices).map(
-          ([ingredientId, optionId]) => ({ ingredientId, optionId }),
-        ),
-      })));
-      const token = data.request.tracking_token;
-      setTrackingTokens((current) => {
-        const next = current.includes(token) ? current : [...current, token];
-        localStorage.setItem(storageKey, JSON.stringify(next));
-        localStorage.removeItem(legacyStorageKey);
-        return next;
-      });
-      setTrackingToken(token);
-      setTrackedRequests((current) => [...current, data.request]);
-      setCart([]);
-    } catch (requestError) {
-      setError(requestError.message);
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+      setIsSubmitting(true); // Marks the request as currently being sent.
+      setError(""); // Clears any previous error message.
 
-  const startNewRequest = () => {
-    setTrackingToken("");
-    setError("");
+      const data = await submitRequest(
+        qrCode, // Tells the backend which table is sending the request.
+        cart.map((line) => ({
+          itemId: line.item.id, // Sends the ID of the requested menu item.
+          qty: line.qty, // Sends the requested quantity.
+
+          ingredients: Object.entries(line.choices).map(
+            ([ingredientId, optionId]) => ({
+              ingredientId, // Sends the ingredient ID.
+              optionId, // Sends the selected option ID.
+            }),
+          ),
+        })),
+      );
+
+      const token = data.request.tracking_token; // Gets the new request's tracking token.
+
+      setTrackingTokens((current) => {
+        const next = current.includes(token)
+          ? current // Keeps the current array if the token is already saved.
+          : [...current, token]; // Otherwise, adds the new token.
+
+        localStorage.setItem(storageKey, JSON.stringify(next)); // Saves all tracking tokens in the browser.
+
+        return next; // Updates the trackingTokens state.
+      });
+
+      setTrackingToken(token); // Selects the newly submitted request.
+      setTrackedRequests((current) => [...current, data.request]); // Adds the new request to the tracked requests.
+      setCart([]); // Empties the cart after submission succeeds.
+    } catch (requestError) {
+      setError(requestError.message); // Shows the error if submission fails.
+    } finally {
+      setIsSubmitting(false); // Ends the submitting state after success or failure.
+    }
   };
 
   const openMyRequests = () => {
-    if (trackedRequests.length === 0) {
-      setError("No requests have been saved on this device yet.");
-      return;
+    if (!trackedRequests.length) {
+      setError("No requests have been saved on this device yet."); // Tells the customer that there are no saved requests.
+      return; // Stops because there is no request to open.
     }
-    setTrackingToken(trackedRequests.at(-1).tracking_token);
-    setError("");
+
+    setTrackingToken(
+      trackedRequests.at(-1).tracking_token, // Selects the newest tracked request.
+    );
+
+    setError(""); // Clears any previous error.
   };
 
-  if (isLoading) return <main className="customer-state">Loading menu…</main>;
-  if (!page) return <main className="customer-state customer-error">{error || "This table is unavailable."}</main>;
+  if (isLoading) {
+    return <main className="customer-state">Loading menu…</main>; // Shows this while waiting for the menu.
+  }
+
+  if (!page) {
+    return (
+      <main className="customer-state customer-error">
+        {error || "This table is unavailable."}{/* Shows the backend error or a default message. */}
+      </main>
+    );
+  }
 
   if (trackingToken && trackedRequest) {
-    const currentIndex = STEPS.indexOf(trackedRequest.status);
-    const copy = COPY[trackedRequest.status] || COPY.pending;
     return (
-      <main className="tracking-page">
-        <div className="tracking-layout">
-          {trackedRequests.length > 0 && (
-            <nav className="customer-request-switcher" aria-label="My requests">
-              <p>My requests</p>
-              <div>
-                {trackedRequests.map((request) => (
-                  <button
-                    className={request.tracking_token === trackingToken ? "active" : ""}
-                    key={request.tracking_token}
-                    type="button"
-                    onClick={() => setTrackingToken(request.tracking_token)}
-                  >
-                    <strong>#{request.id}</strong>
-                    <span>{COPY[request.status]?.[0] || request.status}</span>
-                  </button>
-                ))}
-              </div>
-            </nav>
-          )}
-          <section className={`tracking-card tracking-${trackedRequest.status}`}>
-          <div className="tracking-icon">{trackedRequest.status === "cancelled" ? "×" : "✓"}</div>
-          <p className="customer-kicker">Table {page.table.number} · Request #{trackedRequest.id}</p>
-          <h1>{copy[0]}</h1><p>{copy[1]}</p>
-          {trackedRequest.status !== "cancelled" && (
-            <div className="tracking-steps">
-              {STEPS.map((status, index) => (
-                <div className={index <= currentIndex ? "active" : ""} key={status}>
-                  <span>{index + 1}</span><small>{COPY[status][0]}</small>
-                </div>
-              ))}
-            </div>
-          )}
-          <div className="tracking-summary"><span>Total</span><strong>{money(trackedRequest.price)}</strong></div>
-          <button type="button" onClick={startNewRequest}>
-            Place another request
-          </button>
-          <small className="live-note">Updates automatically</small>
-          </section>
-        </div>
-      </main>
+      <RequestTracker
+        request={trackedRequest} // The request currently being displayed.
+        requests={trackedRequests} // All requests saved and loaded on this device.
+        tableNumber={page.table.number} // The customer's table number.
+        trackingToken={trackingToken} // The token belonging to the selected request.
+        onSelect={setTrackingToken} // Changes the displayed request.
+        onNewRequest={() => {
+          setTrackingToken(""); // Hides the tracker and returns to the menu.
+          setError(""); // Clears any previous error.
+        }}
+      />
     );
   }
 
   return (
     <main className="customer-page">
-      <header className="customer-header">
-        <div>
-          <p className="customer-kicker">Table {page.table.number}</p>
-          <h1>{page.restaurant.name}</h1>
-          <p>Choose your favorites and send one request to the kitchen.</p>
-        </div>
-        <div className="customer-header-actions">
-          <button
-            className="my-requests-button"
-            type="button"
-            onClick={openMyRequests}
-          >
-            My requests ({trackedRequests.length})
-          </button>
-          <div className="cart-pill">{cart.reduce((sum, line) => sum + line.qty, 0)} items</div>
-        </div>
-      </header>
-      {error && <p className="customer-alert">{error}</p>}
+      <CustomerHeader
+        restaurant={page.restaurant.name} // Displays the restaurant's name.
+        tableNumber={page.table.number} // Displays the current table number.
+        requestCount={trackedRequests.length} // Displays how many requests are being tracked.
+        cartCount={cartCount} // Displays the total quantity of items in the cart.
+        onOpenRequests={openMyRequests} // Opens the customer's newest submitted request.
+      />
 
-      <div className="customer-category-filter">
-        <label htmlFor="customer-category">Filter menu</label>
-        <select
-          id="customer-category"
-          value={categoryFilter}
-          onChange={(event) => setCategoryFilter(event.target.value)}
-        >
-          <option value="all">All categories</option>
-          {page.menu.categories.map((category) => (
-            <option key={category.id} value={String(category.id)}>
-              {category.name}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      {page.menu.categories
-        .filter(
-          (category) =>
-            categoryFilter === "all" ||
-            String(category.id) === categoryFilter,
-        )
-        .map((category) => {
-          const items = page.menu.items.filter(
-            (item) => String(item.category_id) === String(category.id),
-          );
-          if (!items.length) return null;
-          return (
-            <section className="menu-section" key={category.id}>
-              <div className="menu-section-heading"><p>Explore</p><h2>{category.name}</h2></div>
-              <div className="customer-menu-grid">
-                {items.map((item) => (
-                  <article className="customer-item-card" key={item.id}>
-                    <div className="customer-item-image">
-                      {item.image_url ? <img src={item.image_url} alt="" /> : <span>{item.name[0]}</span>}
-                    </div>
-                    <div>
-                      <h3>{item.name}</h3>
-                      <p>{item.description || "Freshly prepared for your table."}</p>
-                      <div><strong>{money(item.price)}</strong><button type="button" onClick={() => openItem(item)}>Add</button></div>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          );
-      })}
-
-      {cart.length > 0 && (
-        <aside className="customer-cart">
-          <div className="customer-cart-title">
-            <div><p>Your request</p><h2>Table {page.table.number}</h2></div><strong>{money(total)}</strong>
-          </div>
-          <div className="customer-cart-lines">
-            {cart.map((line) => (
-              <div key={line.key}>
-                <span>{line.qty} × {line.item.name}</span>
-                <button type="button" onClick={() => setCart((current) => current.filter((entry) => entry.key !== line.key))}>Remove</button>
-              </div>
-            ))}
-          </div>
-          <button className="submit-request-button" type="button" disabled={isSubmitting} onClick={sendRequest}>
-            {isSubmitting ? "Sending…" : `Submit request · ${money(total)}`}
-          </button>
-        </aside>
+      {error && (
+        <p className="customer-alert">{error}</p> // Displays this paragraph only when an error exists.
       )}
 
-      {activeItem && (
-        <div className="request-modal-backdrop" onMouseDown={() => setActiveItem(null)}>
-          <section className="customer-customizer" onMouseDown={(event) => event.stopPropagation()}>
-            <button className="request-close" type="button" onClick={() => setActiveItem(null)}>×</button>
-            <p className="customer-kicker">Customize</p><h2>{activeItem.name}</h2><p>{activeItem.description}</p>
-            {activeItem.ingredients.map((ingredient) => ingredient.options.length > 0 && (
-              <fieldset key={ingredient.id}>
-                <legend>{ingredient.name}</legend>
-                {ingredient.options.map((option) => (
-                  <label key={option.id}>
-                    <input type="radio" name={`ingredient-${ingredient.id}`}
-                      checked={String(choices[ingredient.id]) === String(option.id)}
-                      onChange={() => setChoices((current) => ({ ...current, [ingredient.id]: option.id }))} />
-                    {option.optionName}
-                  </label>
-                ))}
-              </fieldset>
-            ))}
-            <div className="quantity-row">
-              <span>Quantity</span><div>
-                <button type="button" onClick={() => setQuantity((value) => Math.max(1, value - 1))}>−</button>
-                <strong>{quantity}</strong>
-                <button type="button" onClick={() => setQuantity((value) => Math.min(100, value + 1))}>+</button>
-              </div>
-            </div>
-            <button className="submit-request-button" type="button" onClick={addToCart}>
-              Add to request · {money(Number(activeItem.price) * quantity)}
-            </button>
-          </section>
-        </div>
-      )}
+      <CategoryFilter
+        categories={page.menu.categories} // Gives the filter all available categories.
+        value={categoryFilter} // Tells it which category is currently selected.
+        onChange={setCategoryFilter} // Updates the selected category.
+      />
+
+      <CustomerMenu
+        categories={page.menu.categories} // Gives the menu its category information.
+        items={page.menu.items} // Gives the menu all available items.
+        categoryFilter={categoryFilter} // Tells the menu which category to display.
+        onAdd={openItem} // Opens the selected item for customization.
+      />
+
+      <RequestCart
+        cart={cart} // Gives the cart component all selected items.
+        tableNumber={page.table.number} // Gives it the customer's table number.
+        total={total} // Gives it the calculated cart total.
+        isSubmitting={isSubmitting} // Tells it whether the request is being sent.
+        onRemove={(key) =>
+          setCart(
+            (current) =>
+              current.filter((entry) => entry.key !== key), // Keeps every cart entry except the selected one.
+          )
+        }
+        onSubmit={sendRequest} // Sends the cart to the backend.
+      />
+
+      <ItemCustomizer
+        item={activeItem} // Gives the customizer the currently selected item.
+        choices={choices} // Gives it the selected ingredient options.
+        quantity={quantity} // Gives it the selected quantity.
+        onChoiceChange={(ingredientId, optionId) =>
+          setChoices((current) => ({
+            ...current, // Keeps the choices made for the other ingredients.
+            [ingredientId]: optionId, // Updates the option chosen for this ingredient.
+          }))
+        }
+        onQuantityChange={setQuantity} // Updates the selected quantity.
+        onClose={() => setActiveItem(null)} // Closes the customizer without adding the item.
+        onAdd={addToCart} // Validates and adds the customized item to the cart.
+      />
     </main>
   );
 }
 
-export default CustomerOrderPage;
+export default CustomerOrderPage; // Allows this component to be imported into another file.

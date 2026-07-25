@@ -6,6 +6,7 @@ import {
   REQUEST_STATUSES,
   updateRequestStatus,
 } from "../models/requestModel.js";
+import { emitRequestUpdated } from "../src/socket.js";
 
 const parseId = (value) =>
   typeof value === "string" && /^\d+$/.test(value) ? value : null;
@@ -132,6 +133,7 @@ export const changeRequestStatus = async (req, res, next) => {
       status,
     });
     if (!request) return res.status(404).json({ message: "Request not found" });
+    emitRequestUpdated(request);
     return res.json({ message: "Request status updated", request });
   } catch (error) {
     next(error);

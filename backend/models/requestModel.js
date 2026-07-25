@@ -20,11 +20,16 @@ const getRequestById = async (client, requestId, userId = null) => {
        r.created_at,
        r.price,
        r.status,
+       r.status_changed_at,
        r.tracking_token
      FROM requests r
      JOIN restaurant_tables t ON t.id = r.table_id
      WHERE r.id = $1
-       AND ($2::bigint IS NULL OR r.user_id = $2)`,
+       AND ($2::bigint IS NULL OR r.user_id = $2)
+       AND (
+         r.status NOT IN ('completed', 'cancelled')
+         OR r.status_changed_at > NOW() - INTERVAL '2 minutes'
+       )`,
     [requestId, userId],
   );
   const request = requestResult.rows[0];
@@ -290,12 +295,17 @@ export const findRequestsByUserId = async (userId, status = null) => {
        r.created_at,
        r.price,
        r.status,
+       r.status_changed_at,
        COALESCE(SUM(ri.qty), 0)::integer AS item_count
      FROM requests r
      JOIN restaurant_tables t ON t.id = r.table_id
      LEFT JOIN requested_items ri ON ri.request_id = r.id
      WHERE r.user_id = $1
        AND ($2::varchar IS NULL OR r.status = $2)
+       AND (
+         r.status NOT IN ('completed', 'cancelled')
+         OR r.status_changed_at > NOW() - INTERVAL '2 minutes'
+       )
      GROUP BY r.id, t.number
      ORDER BY r.created_at DESC`,
     [userId, status],
@@ -329,7 +339,11 @@ export const updateRequestStatus = async ({
 
     const result = await client.query(
       `UPDATE requests
-       SET status = $1
+       SET status = $1::varchar,
+           status_changed_at = CASE
+             WHEN status IS DISTINCT FROM $1::varchar THEN NOW()
+             ELSE status_changed_at
+           END
        WHERE id = $2 AND user_id = $3
        RETURNING id, user_id, price`,
       [status, requestId, userId],

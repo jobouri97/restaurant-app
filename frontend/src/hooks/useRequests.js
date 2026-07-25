@@ -1,5 +1,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { getRequest, getRequests, setRequestStatus } from "../services/requestApi.js";
+import {
+  getRequestExpiryTime,
+  isRequestExpired,
+} from "../utils/requestExpiry.js";
 
 export const useRequests = (onCompleted) => {
   const [requests, setRequests] = useState([]);
@@ -12,7 +16,7 @@ export const useRequests = (onCompleted) => {
 
   const filteredRequests = useMemo(() => {
     const activeRequests = requests.filter(
-      (request) => request.status !== "completed",
+      (request) => !isRequestExpired(request),
     );
     if (dateFilter === "all") return activeRequests;
 
@@ -67,6 +71,30 @@ export const useRequests = (onCompleted) => {
     };
   }, [refresh]);
 
+  useEffect(() => {
+    const now = Date.now();
+    const expiryTimes = requests
+      .map(getRequestExpiryTime)
+      .filter((expiryTime) => expiryTime !== null);
+
+    if (!expiryTimes.length) return undefined;
+
+    const delay = Math.max(0, Math.min(...expiryTimes) - now);
+    const timeout = window.setTimeout(() => {
+      const expiryCheckTime = Date.now();
+      setRequests((current) =>
+        current.filter(
+          (request) => !isRequestExpired(request, expiryCheckTime),
+        ),
+      );
+      setSelected((current) =>
+        current && isRequestExpired(current, expiryCheckTime) ? null : current,
+      );
+    }, delay);
+
+    return () => window.clearTimeout(timeout);
+  }, [requests]);
+
   const openRequest = async (id) => {
     try {
       const data = await getRequest(id);
@@ -82,22 +110,19 @@ export const useRequests = (onCompleted) => {
     try {
       setIsSaving(true);
       const data = await setRequestStatus(selected.id, status);
-      if (status === "completed") {
-        setSelected(null);
-        setRequests((current) =>
-          current.filter((entry) => entry.id !== data.request.id),
-        );
-        onCompleted?.({ quiet: true });
-      } else {
-        setSelected(data.request);
-        setRequests((current) =>
-          current.map((entry) =>
-            entry.id === data.request.id
-              ? { ...entry, status: data.request.status }
-              : entry,
-          ),
-        );
-      }
+      setSelected(data.request);
+      setRequests((current) =>
+        current.map((entry) =>
+          entry.id === data.request.id
+            ? {
+                ...entry,
+                status: data.request.status,
+                status_changed_at: data.request.status_changed_at,
+              }
+            : entry,
+        ),
+      );
+      if (status === "completed") onCompleted?.({ quiet: true });
       setError("");
     } catch (requestError) {
       setError(requestError.message);

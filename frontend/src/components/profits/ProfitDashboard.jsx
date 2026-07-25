@@ -87,10 +87,10 @@ function ProfitDashboard({ profits, isLoading }) {
             <tbody>
               {visibleProfits.map((profit, index) => (
                 <tr key={profit.id}>
-                  <td>#{visibleProfits.length - index}</td>
-                  <td>Table {profit.table_number}</td>
-                  <td>{new Date(profit.created_at).toLocaleString()}</td>
-                  <td><strong>{money(profit.price)}</strong></td>
+                  <td data-label="Request">#{visibleProfits.length - index}</td>
+                  <td data-label="Table">Table {profit.table_number}</td>
+                  <td data-label="Completed">{new Date(profit.created_at).toLocaleString()}</td>
+                  <td data-label="Profit"><strong>{money(profit.price)}</strong></td>
                 </tr>
               ))}
             </tbody>

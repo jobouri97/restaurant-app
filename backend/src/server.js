@@ -1,7 +1,9 @@
 import "dotenv/config";
+import { createServer } from "node:http";
 import express from "express";
 import cors from "cors";
 import pool from "./db.js";
+import { initializeSocket } from "./socket.js";
 import authRoutes from "../routes/authRoutes.js";
 import categoryRoutes from "../routes/categoryRoutes.js";
 import itemRoutes from "../routes/itemRoutes.js";
@@ -11,6 +13,9 @@ import profitRoutes from "../routes/profitRoutes.js";
 import tableRoutes from "../routes/tableRoutes.js";
 
 const app = express();
+const httpServer = createServer(app);
+
+initializeSocket(httpServer);
 
 app.use(
     cors({
@@ -55,6 +60,6 @@ app.use((err, req, res, next) => { //Add centralized error handling
   });
 });
 
-app.listen(port, () => {
+httpServer.listen(port, () => {
     console.log(`Backend running at http://localhost:${port}`);
 });
