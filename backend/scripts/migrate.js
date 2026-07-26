@@ -2,7 +2,12 @@ import "dotenv/config";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import pool from "../src/db.js";
+
+if (process.env.DIRECT_DATABASE_URL) {
+  process.env.DATABASE_URL = process.env.DIRECT_DATABASE_URL;
+}
+
+const { default: pool } = await import("../src/db.js");
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const migrationsDirectory = path.join(currentDirectory, "..", "migrations");

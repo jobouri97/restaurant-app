@@ -1,4 +1,4 @@
-function AdminHeader({ section, count }) {
+function AdminHeader({ section, count, soundEnabled, onEnableSound }) {
   const isItems = section === "items";
   const isTables = section === "tables";
   const isRequests = section === "requests";
@@ -23,9 +23,22 @@ function AdminHeader({ section, count }) {
         <h1>{title}</h1>
         <p>{description}</p>
       </div>
-      <span className="category-count">
-        {count} {count === 1 ? singular : plural}
-      </span>
+      <div className="admin-header-actions">
+        {isRequests && (
+          <button
+            className={`sound-toggle ${soundEnabled ? "enabled" : ""}`}
+            type="button"
+            onClick={onEnableSound}
+            disabled={soundEnabled}
+          >
+            <span aria-hidden="true">{soundEnabled ? "♪" : "♩"}</span>
+            {soundEnabled ? "Order sounds on" : "Enable order sounds"}
+          </button>
+        )}
+        <span className="category-count">
+          {count} {count === 1 ? singular : plural}
+        </span>
+      </div>
     </header>
   );
 }

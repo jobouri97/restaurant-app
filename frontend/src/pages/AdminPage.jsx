@@ -16,6 +16,7 @@ import RequestBoard from "../components/requests/RequestBoard.jsx";
 import { useRequests } from "../hooks/useRequests.js";
 import ProfitDashboard from "../components/profits/ProfitDashboard.jsx";
 import { useProfits } from "../hooks/useProfits.js";
+import { useOrderNotification } from "../hooks/useOrderNotification.js";
 
 function AdminPage() {
   const navigate = useNavigate();
@@ -25,7 +26,11 @@ function AdminPage() {
   const itemsState = useItems();
   const tablesState = useTables();
   const profitsState = useProfits();
-  const requestsState = useRequests(profitsState.refresh);
+  const orderNotification = useOrderNotification();
+  const requestsState = useRequests(
+    profitsState.refresh,
+    orderNotification.play,
+  );
   const isRequests = activeSection === "requests";
   const isProfits = activeSection === "profits";
   const isItems = activeSection === "items";
@@ -59,6 +64,8 @@ function AdminPage() {
       <main className="admin-main">
         <AdminHeader
           section={activeSection}
+          soundEnabled={orderNotification.isEnabled}
+          onEnableSound={orderNotification.enable}
           count={
             isProfits
               ? profitsState.profits.length

@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { io } from "socket.io-client";
 import { getRequest, getRequests, setRequestStatus } from "../services/requestApi.js";
 import {
   getRequestExpiryTime,
   isRequestExpired,
 } from "../utils/requestExpiry.js";
 
-export const useRequests = (onCompleted) => {
+export const useRequests = (onCompleted, onNewRequest) => {
   const [requests, setRequests] = useState([]);
   const [selected, setSelected] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -70,6 +71,22 @@ export const useRequests = (onCompleted) => {
       window.clearInterval(interval);
     };
   }, [refresh]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return undefined;
+
+    const socket = io(import.meta.env.VITE_API_URL, {
+      auth: { token },
+    });
+
+    socket.on("request:created", () => {
+      onNewRequest?.();
+      refresh({ quiet: true });
+    });
+
+    return () => socket.disconnect();
+  }, [onNewRequest, refresh]);
 
   useEffect(() => {
     const now = Date.now();

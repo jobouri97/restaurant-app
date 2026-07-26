@@ -678,6 +678,37 @@
   margin-bottom: 32px;
 }
 
+.admin-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.sound-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 8px 12px;
+  border: 1px solid #caa46f;
+  border-radius: 999px;
+  color: #74491e;
+  background: #fff8ea;
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.sound-toggle span { font-size: 1rem; }
+
+.sound-toggle.enabled {
+  border-color: #a9c5b2;
+  color: #29513c;
+  background: #e8f4ec;
+  cursor: default;
+}
+
 .eyebrow {
   margin: 0 0 8px !important;
   color: #a16b2e !important;
@@ -1238,13 +1269,15 @@
 
 .category-image {
   position: relative;
-  height: 150px;
+  height: clamp(190px, 18vw, 240px);
   display: grid;
   place-items: center;
   overflow: hidden;
+  padding: 12px;
+  box-sizing: border-box;
   background:
-    linear-gradient(145deg, rgba(255,255,255,0.1), rgba(0,0,0,0.04)),
-    #d7b47f;
+    radial-gradient(circle at center, rgba(255, 255, 255, 0.9), transparent 72%),
+    #f1ece4;
 }
 
 .status-badge {
@@ -1327,7 +1360,9 @@
   width: 100%;
   height: 100%;
   display: block;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center;
+  border-radius: 10px;
 }
 
 .category-image .category-initial {
@@ -1641,9 +1676,7 @@
     grid-column: 1 / -1;
   }
 
-  .category-image {
-    height: 180px;
-  }
+  .category-image { height: clamp(190px, 48vw, 240px); }
 
   .auth-page {
     align-items: start;
@@ -2020,4 +2053,18 @@
   .table-card.print-target .qr-frame {
     width: 76mm;
   }
+}
+
+/* Keep display typography while using Tajawal only for Arabic glyphs. */
+.admin-header h1,
+.customer-header h1,
+.customer-item-card h3,
+.category-card h3,
+.request-ticket h3,
+.request-detail-title h2,
+.customer-customizer h2,
+.menu-section-heading h2,
+.customer-cart-title h2,
+.tracking-card h1 {
+  font-family: "Tajawal Arabic", Georgia, "Times New Roman", serif;
 }

@@ -6,7 +6,10 @@ import {
   REQUEST_STATUSES,
   updateRequestStatus,
 } from "../models/requestModel.js";
-import { emitRequestUpdated } from "../src/socket.js";
+import {
+  emitRequestCreated,
+  emitRequestUpdated,
+} from "../src/socket.js";
 
 const parseId = (value) =>
   typeof value === "string" && /^\d+$/.test(value) ? value : null;
@@ -58,6 +61,7 @@ export const addPublicRequest = async (req, res, next) => {
       qrCode: req.params.qrCode,
       items,
     });
+    emitRequestCreated(request);
     return res.status(201).json({
       message: "Request created",
       request,
