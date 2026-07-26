@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { formatMoney } from "./customerPresentation.js";
 
 const getSelectedOptions = (line) =>
@@ -22,18 +23,34 @@ function RequestCart({
   onRemove,
   onSubmit,
 }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
   if (!cart.length) return null;
 
+  const cartCount = cart.reduce((sum, line) => sum + line.qty, 0);
+
   return (
-    <aside className="customer-cart">
+    <aside className={`customer-cart${isExpanded ? " is-expanded" : ""}`}>
       <div className="customer-cart-title">
         <div>
           <p>Your request</p>
           <h2>Table {tableNumber}</h2>
         </div>
-        <strong>{formatMoney(total)}</strong>
+        <div className="customer-cart-summary">
+          <strong>{formatMoney(total)}</strong>
+          <button
+            className="customer-cart-toggle"
+            type="button"
+            aria-expanded={isExpanded}
+            aria-controls="customer-cart-lines"
+            onClick={() => setIsExpanded((current) => !current)}
+          >
+            {isExpanded ? "Hide items" : `View ${cartCount} ${cartCount === 1 ? "item" : "items"}`}
+            <span aria-hidden="true">{isExpanded ? "↓" : "↑"}</span>
+          </button>
+        </div>
       </div>
-      <div className="customer-cart-lines">
+      <div className="customer-cart-lines" id="customer-cart-lines">
         {cart.map((line) => {
           const selectedOptions = getSelectedOptions(line);
 

@@ -29,6 +29,19 @@ const readTrackingTokens = (storageKey) => { // Reads saved request tokens from 
   }
 };
 
+const haveSameChoices = (firstChoices, secondChoices) => {
+  const firstEntries = Object.entries(firstChoices);
+  const secondEntries = Object.entries(secondChoices);
+
+  return (
+    firstEntries.length === secondEntries.length &&
+    firstEntries.every(
+      ([ingredientId, optionId]) =>
+        String(secondChoices[ingredientId]) === String(optionId),
+    )
+  );
+};
+
 function CustomerOrderPage() {
   const { qrCode } = useParams(); // For example, /order/ABC123 gives us "ABC123".
 
@@ -205,15 +218,31 @@ function CustomerOrderPage() {
       return; // Stops before adding the incomplete item.
     }
 
-    setCart((current) => [
-      ...current, // Keeps all items already in the cart.
-      {
-        key: crypto.randomUUID(), // Creates a unique key for this cart entry.
-        item: activeItem, // Saves the selected menu item.
-        qty: quantity, // Saves the selected quantity.
-        choices, // Saves the selected ingredient options.
-      },
-    ]);
+    setCart((current) => {
+      const matchingLine = current.find(
+        (line) =>
+          String(line.item.id) === String(activeItem.id) &&
+          haveSameChoices(line.choices, choices),
+      );
+
+      if (matchingLine) {
+        return current.map((line) =>
+          line.key === matchingLine.key
+            ? { ...line, qty: line.qty + quantity }
+            : line,
+        );
+      }
+
+      return [
+        ...current, // Keeps all items already in the cart.
+        {
+          key: crypto.randomUUID(), // Creates a unique key for this cart entry.
+          item: activeItem, // Saves the selected menu item.
+          qty: quantity, // Saves the selected quantity.
+          choices: { ...choices }, // Saves the selected ingredient options.
+        },
+      ];
+    });
 
     setActiveItem(null); // Closes the item customization popup.
     setError(""); // Clears any previous error message.

@@ -421,7 +421,9 @@
 .customer-cart { position: fixed; left: 50%; bottom: 18px; z-index: 20; width: min(calc(100% - 32px), 700px); padding: 18px; transform: translateX(-50%); border: 1px solid #d8d0c4; border-radius: 20px; background: rgba(255,253,249,.96); box-shadow: 0 20px 60px rgba(48,37,25,.2); backdrop-filter: blur(10px); }
 .customer-cart-title { display: flex; align-items: center; justify-content: space-between; }
 .customer-cart-title h2 { margin: 2px 0 0; font: 500 1.25rem Georgia, serif; }
-.customer-cart-title > strong { font-size: 1.25rem; }
+.customer-cart-summary { display: grid; justify-items: end; gap: 4px; }
+.customer-cart-summary > strong { font-size: 1.25rem; }
+.customer-cart-toggle { display: none; }
 .customer-cart-lines { max-height: 90px; overflow: auto; margin: 12px 0; padding-block: 8px; border-block: 1px solid #ebe5dc; }
 .customer-cart-line { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 5px 0; font-size: .8rem; }
 .customer-cart-line > div { display: grid; gap: 2px; }
@@ -519,8 +521,8 @@
   .profit-dashboard { gap: 30px; }
   .profit-list-heading { margin-bottom: -12px; }
   .customer-page {
-    padding: 32px 18px 300px;
-    scroll-padding-bottom: 300px;
+    padding: 32px 18px 180px;
+    scroll-padding-bottom: 180px;
   }
   .customer-header { align-items: start; margin-bottom: 36px; }
   .customer-header h1 { font-size: clamp(2.35rem, 12vw, 4rem); }
@@ -530,10 +532,25 @@
     bottom: max(8px, env(safe-area-inset-bottom));
     width: calc(100% - 20px);
     max-height: calc(100dvh - 20px);
-    overflow-y: auto;
     padding: 15px;
     border-radius: 16px;
   }
+  .customer-cart-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 0;
+    border: 0;
+    color: #74491e;
+    background: transparent;
+    font: inherit;
+    font-size: .75rem;
+    font-weight: 800;
+    cursor: pointer;
+  }
+  .customer-cart-lines { display: none; }
+  .customer-cart.is-expanded { overflow-y: auto; }
+  .customer-cart.is-expanded .customer-cart-lines { display: block; }
   .request-modal-backdrop { padding: 10px; }
   .request-detail,
   .customer-customizer {
@@ -1885,7 +1902,7 @@
   }
 
   .customer-page {
-    padding: 24px 12px 280px;
+    padding: 24px 12px 170px;
   }
 
   .customer-header h1 {
