@@ -1,11 +1,23 @@
 import bcrypt from "bcrypt";
+import { OAuth2Client } from "google-auth-library";
 import {
+  createGoogleUser,
   createUser,
   findUserByEmail,
   findUserById,
+  linkGoogleAccount,
 } from "../models/userModel.js";
 import { generateToken } from "../utils/jwt.js";
 import crypto from "node:crypto";
+
+const googleClient = new OAuth2Client();
+
+const toPublicUser = (user) => ({
+  id: user.id,
+  email: user.email,
+  name: user.name,
+  isAdmin: user.is_admin,
+});
 
 export const register = async (req, res, next) => {
   try {
@@ -77,10 +89,9 @@ export const login = async (req, res, next) => {
       });
     }
 
-    const passwordMatches = await bcrypt.compare(
-      password,
-      user.password_hash,
-    );
+    const passwordMatches = user.password_hash
+      ? await bcrypt.compare(password, user.password_hash)
+      : false;
 
     if (!passwordMatches) {
       return res.status(401).json({
@@ -116,6 +127,65 @@ export const getCurrentUser = async (req, res, next) => {
     }
 
     return res.json({ user });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const googleLogin = async (req, res, next) => {
+  try {
+    const credential = req.body.credential;
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+
+    if (!credential) {
+      return res.status(400).json({ message: "Google credential is required" });
+    }
+
+    if (!clientId) {
+      return res.status(503).json({ message: "Google authentication is not configured" });
+    }
+
+    let ticket;
+
+    try {
+      ticket = await googleClient.verifyIdToken({
+        idToken: credential,
+        audience: clientId,
+      });
+    } catch {
+      return res.status(401).json({ message: "Google credential is invalid or expired" });
+    }
+    const payload = ticket.getPayload();
+
+    if (!payload?.sub || !payload.email || !payload.email_verified) {
+      return res.status(401).json({ message: "Google account could not be verified" });
+    }
+
+    const email = payload.email.trim().toLowerCase();
+    let user = await findUserByEmail(email);
+
+    if (user?.google_id && user.google_id !== payload.sub) {
+      return res.status(409).json({ message: "This email is linked to another Google account" });
+    }
+
+    if (user) {
+      if (!user.google_id) {
+        user = await linkGoogleAccount({ userId: user.id, googleId: payload.sub });
+      }
+    } else {
+      user = await createGoogleUser({
+        email,
+        name: payload.name?.trim() || email.split("@")[0],
+        googleId: payload.sub,
+        publicCode: crypto.randomBytes(9).toString("base64url"),
+      });
+    }
+
+    return res.json({
+      message: "Google login successful",
+      token: generateToken(user.id),
+      user: toPublicUser(user),
+    });
   } catch (error) {
     next(error);
   }

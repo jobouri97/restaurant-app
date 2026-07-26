@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { GoogleLogin } from "@react-oauth/google";
 import {
+  loginWithGoogle,
   loginUser,
   registerUser,
 } from "../services/authApi.js";
@@ -42,6 +44,25 @@ function AuthPage() {
     }));
   };
 
+  const finishAuthentication = (data) => {
+    localStorage.setItem("token", data.token);
+    localStorage.setItem("user", JSON.stringify(data.user));
+    navigate("/admin");
+  };
+
+  const handleGoogleSuccess = async ({ credential }) => {
+    setError("");
+
+    try {
+      setIsSubmitting(true);
+      finishAuthentication(await loginWithGoogle(credential));
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError("");
@@ -70,10 +91,7 @@ function AuthPage() {
             password: form.password,
           });
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      navigate("/admin");
+      finishAuthentication(data);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -115,6 +133,21 @@ function AuthPage() {
             ? "Create a restaurant staff account."
             : "Log in to manage your restaurant."}
         </p>
+
+        <div className="google-auth">
+          <GoogleLogin
+            onSuccess={handleGoogleSuccess}
+            onError={() => setError("Google sign-in was cancelled or failed")}
+            shape="rectangular"
+            size="large"
+            text={isRegistering ? "signup_with" : "signin_with"}
+            width="350"
+          />
+        </div>
+
+        <div className="auth-divider">
+          <span>or continue with email</span>
+        </div>
 
         {error && (
           <p className="form-message form-error" role="alert">

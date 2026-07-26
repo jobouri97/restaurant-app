@@ -135,6 +135,29 @@
   box-shadow: 0 3px 12px rgba(61, 38, 22, 0.1);
 }
 
+.google-auth {
+  display: flex;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 22px 0;
+  color: #8b7f76;
+  font-size: 0.78rem;
+}
+
+.auth-divider::before,
+.auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: #e4d8ca;
+  content: "";
+}
+
 /* Live requests */
 .request-board {
   display: grid;

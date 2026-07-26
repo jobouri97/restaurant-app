@@ -46,3 +46,10 @@ export const getCurrentUser = (token) => {
     },
   });
 };
+
+export const loginWithGoogle = (credential) => {
+  return sendRequest("/api/auth/google", {
+    method: "POST",
+    body: JSON.stringify({ credential }),
+  });
+};
