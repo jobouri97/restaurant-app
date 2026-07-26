@@ -1,10 +1,15 @@
 import { useCallback, useEffect, useState } from "react";
-import { getProfits } from "../services/profitApi.js";
+import {
+  getProfitDetails,
+  getProfits,
+} from "../services/profitApi.js";
 
 export const useProfits = () => {
   const [profits, setProfits] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [selected, setSelected] = useState(null);
+  const [loadingProfitId, setLoadingProfitId] = useState(null);
 
   const refresh = useCallback(async ({ quiet = false } = {}) => {
     try {
@@ -27,11 +32,28 @@ export const useProfits = () => {
     };
   }, [refresh]);
 
+  const openProfit = async (id) => {
+    try {
+      setLoadingProfitId(id);
+      const data = await getProfitDetails(id);
+      setSelected(data.profit);
+      setError("");
+    } catch (requestError) {
+      setError(requestError.message);
+    } finally {
+      setLoadingProfitId(null);
+    }
+  };
+
   return {
     profits,
     isLoading,
     error,
+    selected,
+    loadingProfitId,
     refresh,
+    openProfit,
+    closeProfit: () => setSelected(null),
     clearError: () => setError(""),
   };
 };

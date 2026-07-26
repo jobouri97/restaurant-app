@@ -87,6 +87,10 @@ function AdminPage() {
           <ProfitDashboard
             profits={profitsState.profits}
             isLoading={profitsState.isLoading}
+            selected={profitsState.selected}
+            loadingProfitId={profitsState.loadingProfitId}
+            onOpen={profitsState.openProfit}
+            onClose={profitsState.closeProfit}
           />
         ) : isRequests ? (
           <RequestBoard

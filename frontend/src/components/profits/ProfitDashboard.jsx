@@ -9,7 +9,14 @@ const isSameDay = (value, date) => {
     && candidate.getDate() === date.getDate();
 };
 
-function ProfitDashboard({ profits, isLoading }) {
+function ProfitDashboard({
+  profits,
+  isLoading,
+  selected,
+  loadingProfitId,
+  onOpen,
+  onClose,
+}) {
   const [period, setPeriod] = useState("all");
   const today = new Date();
 
@@ -82,19 +89,82 @@ function ProfitDashboard({ profits, isLoading }) {
                 <th>Table</th>
                 <th>Completed</th>
                 <th>Profit</th>
+                <th>Order</th>
               </tr>
             </thead>
             <tbody>
-              {visibleProfits.map((profit, index) => (
+              {visibleProfits.map((profit) => (
                 <tr key={profit.id}>
-                  <td data-label="Request">#{visibleProfits.length - index}</td>
+                  <td data-label="Request">#{profit.request_id}</td>
                   <td data-label="Table">Table {profit.table_number}</td>
                   <td data-label="Completed">{new Date(profit.created_at).toLocaleString()}</td>
                   <td data-label="Profit"><strong>{money(profit.price)}</strong></td>
+                  <td data-label="Order">
+                    <button
+                      className="profit-view-button"
+                      type="button"
+                      disabled={loadingProfitId !== null}
+                      onClick={() => onOpen(profit.id)}
+                    >
+                      {loadingProfitId === profit.id ? "Loading…" : "View order"}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {selected && (
+        <div className="request-modal-backdrop" onMouseDown={onClose}>
+          <section
+            className="request-detail profit-detail"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="profit-detail-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="request-close"
+              type="button"
+              onClick={onClose}
+              aria-label="Close order details"
+            >
+              &times;
+            </button>
+            <p className="eyebrow">Table {selected.table_number}</p>
+            <div className="request-detail-title">
+              <h2 id="profit-detail-title">Request #{selected.request_id}</h2>
+              <strong>{money(selected.price)}</strong>
+            </div>
+            <p className="profit-detail-meta">
+              Completed {new Date(selected.created_at).toLocaleString()}
+            </p>
+            <div className="request-detail-items">
+              {selected.items.map((item) => (
+                <article key={item.id}>
+                  <div>
+                    <strong>{item.qty} &times; {item.name}</strong>
+                    <span>{money(Number(item.price) * item.qty)}</span>
+                  </div>
+                  {item.ingredients.length > 0 ? (
+                    item.ingredients.map((choice, index) => (
+                      <p key={`${choice.ingredientName}-${index}`}>
+                        {choice.ingredientName}: {choice.optionName}
+                      </p>
+                    ))
+                  ) : (
+                    <p>No options selected</p>
+                  )}
+                </article>
+              ))}
+            </div>
+            <div className="request-total">
+              <span>Total profit</span>
+              <strong>{money(selected.price)}</strong>
+            </div>
+          </section>
         </div>
       )}
     </section>
